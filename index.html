@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuzzy Lookup Portal</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Fuzzy Lookup Portal</h1>
+            <p class="subtitle">Upload two lists and find similar matches between them</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="threshold">Match Threshold:</label>
+                <input type="range" id="threshold" min="0" max="100" value="60">
+                <span id="threshold-value">60%</span>
+            </div>
+            <div class="control-group">
+                <label for="max-results">Max Results per Item:</label>
+                <select id="max-results">
+                    <option value="1">Best match only</option>
+                    <option value="3" selected>Top 3</option>
+                    <option value="5">Top 5</option>
+                    <option value="0">All above threshold</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="lists-container">
+            <div class="list-panel">
+                <h2>List A (Source)</h2>
+                <div class="upload-area" id="upload-a">
+                    <div class="upload-icon">&#128196;</div>
+                    <p>Drag & drop a file here or click to upload</p>
+                    <p class="file-types">CSV, TXT, or Excel (.xlsx)</p>
+                    <input type="file" id="file-a" accept=".csv,.txt,.xlsx" hidden>
+                </div>
+                <div class="or-divider">OR</div>
+                <textarea id="text-a" placeholder="Paste your list here (one item per line)..." rows="8"></textarea>
+                <div class="list-info" id="info-a">0 items loaded</div>
+            </div>
+
+            <div class="list-panel">
+                <h2>List B (Lookup)</h2>
+                <div class="upload-area" id="upload-b">
+                    <div class="upload-icon">&#128196;</div>
+                    <p>Drag & drop a file here or click to upload</p>
+                    <p class="file-types">CSV, TXT, or Excel (.xlsx)</p>
+                    <input type="file" id="file-b" accept=".csv,.txt,.xlsx" hidden>
+                </div>
+                <div class="or-divider">OR</div>
+                <textarea id="text-b" placeholder="Paste your list here (one item per line)..." rows="8"></textarea>
+                <div class="list-info" id="info-b">0 items loaded</div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <button id="match-btn" class="btn-primary">Find Matches</button>
+            <button id="clear-btn" class="btn-secondary">Clear All</button>
+        </div>
+
+        <div id="results-section" class="results-section hidden">
+            <div class="results-header">
+                <h2>Results</h2>
+                <div class="results-actions">
+                    <span id="results-count"></span>
+                    <button id="export-btn" class="btn-export">Export CSV</button>
+                </div>
+            </div>
+            <div class="results-table-wrapper">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>List A Item</th>
+                            <th>Best Match (List B)</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Fuzzy Lookup Portal &mdash; All processing happens in your browser. No data leaves your machine.</p>
+    </footer>
+
+    <script src="fuzzy.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
