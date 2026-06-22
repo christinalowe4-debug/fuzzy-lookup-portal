@@ -191,19 +191,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function esc(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
 
-    function exportCSV() {
+    function exportExcel() {
         if (!currentResults.length) return;
-        // Add BOM for Excel UTF-8 compatibility
-        let csv = '\uFEFF' + 'Source Item,Best Match,Score\n';
+
+        // Build data rows
+        const rows = [['Source Item', 'Best Match', 'Score']];
         currentResults.forEach(r => {
-            if (!r.matches.length) csv += '"' + r.source.replace(/"/g,'""') + '","No match",""\n';
-            else r.matches.forEach(m => { csv += '"' + r.source.replace(/"/g,'""') + '","' + m.target.replace(/"/g,'""') + '","' + m.score + '%"\n'; });
+            if (!r.matches.length) {
+                rows.push([r.source, 'No match', '']);
+            } else {
+                r.matches.forEach(m => {
+                    rows.push([r.source, m.target, m.score + '%']);
+                });
+            }
         });
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'fuzzy-matches-' + new Date().toISOString().slice(0,10) + '.csv';
-        link.click(); URL.revokeObjectURL(link.href);
+
+        // Create workbook and worksheet using SheetJS
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+
+        // Set column widths
+        ws['!cols'] = [{ wch: 40 }, { wch: 40 }, { wch: 10 }];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Fuzzy Matches');
+
+        // Download as .xlsx
+        XLSX.writeFile(wb, 'fuzzy-matches-' + new Date().toISOString().slice(0, 10) + '.xlsx');
     }
 
     function clearAll() {
@@ -218,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     thresholdSlider.addEventListener('input', () => { thresholdValue.textContent = thresholdSlider.value + '%'; });
     matchBtn.addEventListener('click', runMatching);
     clearBtn.addEventListener('click', clearAll);
-    exportBtn.addEventListener('click', exportCSV);
+    exportBtn.addEventListener('click', exportExcel);
     setupUploadArea(uploadA, fileA, textA, infoA, (d) => { listAData = d; });
     setupUploadArea(uploadB, fileB, textB, infoB, (d) => { listBData = d; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.ctrlKey) runMatching(); });
