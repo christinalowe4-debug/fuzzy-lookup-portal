@@ -16,7 +16,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsBody = document.getElementById('results-body');
     const resultsCount = document.getElementById('results-count');
     const exportBtn = document.getElementById('export-btn');
+    const columnModal = document.getElementById('column-modal');
+    const columnOptions = document.getElementById('column-options');
+    const columnCancel = document.getElementById('column-cancel');
+    const columnConfirm = document.getElementById('column-confirm');
+
     let listAData = [], listBData = [], currentResults = [];
+    let pendingColumnCallback = null;
 
     function setupUploadArea(uploadEl, fileInput, textArea, infoEl, listSetter) {
         uploadEl.addEventListener('click', () => fileInput.click());
@@ -37,18 +43,107 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function processFile(file, uploadEl, textArea, infoEl, listSetter) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const text = e.target.result;
-            const lines = (file.name.endsWith('.csv') && text.includes(',')) ? parseCSV(text) : parseText(text);
-            listSetter(lines);
-            textArea.value = lines.join('\n');
-            infoEl.textContent = lines.length + ' items loaded from ' + file.name;
-            uploadEl.classList.add('file-loaded');
-            uploadEl.querySelector('p').textContent = 'Loaded: ' + file.name;
-        };
-        reader.readAsText(file);
+        const fileName = file.name.toLowerCase();
+
+        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+            // Use SheetJS to read Excel files
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    if (jsonData.length === 0) {
+                        alert('The Excel file appears to be empty.');
+                        return;
+                    }
+
+                    // Check how many columns we have
+                    const headers = jsonData[0] || [];
+                    const numCols = headers.length;
+
+                    if (numCols > 1) {
+                        // Show column picker
+                        showColumnPicker(headers, jsonData, (lines) => {
+                            listSetter(lines);
+                            textArea.value = lines.join('\n');
+                            infoEl.textContent = lines.length + ' items loaded from ' + file.name;
+                            uploadEl.classList.add('file-loaded');
+                            uploadEl.querySelector('p').textContent = 'Loaded: ' + file.name;
+                        });
+                    } else {
+                        // Single column - use all rows
+                        const lines = jsonData
+                            .map(row => row[0] != null ? String(row[0]).trim() : '')
+                            .filter(v => v.length > 0);
+                        listSetter(lines);
+                        textArea.value = lines.join('\n');
+                        infoEl.textContent = lines.length + ' items loaded from ' + file.name;
+                        uploadEl.classList.add('file-loaded');
+                        uploadEl.querySelector('p').textContent = 'Loaded: ' + file.name;
+                    }
+                } catch (err) {
+                    alert('Error reading Excel file: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            // CSV or TXT file
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                let lines;
+                if (fileName.endsWith('.csv') && text.includes(',')) {
+                    lines = parseCSV(text);
+                } else {
+                    lines = parseText(text);
+                }
+                listSetter(lines);
+                textArea.value = lines.join('\n');
+                infoEl.textContent = lines.length + ' items loaded from ' + file.name;
+                uploadEl.classList.add('file-loaded');
+                uploadEl.querySelector('p').textContent = 'Loaded: ' + file.name;
+            };
+            reader.readAsText(file);
+        }
     }
+
+    function showColumnPicker(headers, jsonData, callback) {
+        columnOptions.innerHTML = '';
+        headers.forEach((header, idx) => {
+            const label = document.createElement('label');
+            label.className = 'column-option';
+            const sampleValues = jsonData.slice(1, 4).map(row => row[idx] || '').filter(v => v).join(', ');
+            label.innerHTML = '<input type="radio" name="column-select" value="' + idx + '"' + (idx === 0 ? ' checked' : '') + '>' +
+                '<div class="column-info"><strong>' + esc(String(header)) + '</strong>' +
+                (sampleValues ? '<span class="column-sample">e.g. ' + esc(sampleValues) + '</span>' : '') + '</div>';
+            columnOptions.appendChild(label);
+        });
+        pendingColumnCallback = { jsonData, callback };
+        columnModal.classList.remove('hidden');
+    }
+
+    columnConfirm.addEventListener('click', () => {
+        const selected = document.querySelector('input[name="column-select"]:checked');
+        if (selected && pendingColumnCallback) {
+            const colIdx = parseInt(selected.value);
+            const { jsonData, callback } = pendingColumnCallback;
+            // Skip header row, get values from selected column
+            const lines = jsonData.slice(1)
+                .map(row => row[colIdx] != null ? String(row[colIdx]).trim() : '')
+                .filter(v => v.length > 0);
+            callback(lines);
+        }
+        columnModal.classList.add('hidden');
+        pendingColumnCallback = null;
+    });
+
+    columnCancel.addEventListener('click', () => {
+        columnModal.classList.add('hidden');
+        pendingColumnCallback = null;
+    });
 
     function parseText(text) { return text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0); }
 
@@ -98,7 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function exportCSV() {
         if (!currentResults.length) return;
-        let csv = 'Source Item,Best Match,Score\n';
+        // Add BOM for Excel UTF-8 compatibility
+        let csv = '\uFEFF' + 'Source Item,Best Match,Score\n';
         currentResults.forEach(r => {
             if (!r.matches.length) csv += '"' + r.source.replace(/"/g,'""') + '","No match",""\n';
             else r.matches.forEach(m => { csv += '"' + r.source.replace(/"/g,'""') + '","' + m.target.replace(/"/g,'""') + '","' + m.score + '%"\n'; });

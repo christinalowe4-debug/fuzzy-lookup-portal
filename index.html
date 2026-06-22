@@ -87,10 +87,24 @@
         </div>
     </div>
 
+    <!-- Column picker modal -->
+    <div id="column-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Select the column to use for matching</h3>
+            <p class="modal-subtitle">Your file has multiple columns. Pick the one containing the items to match:</p>
+            <div id="column-options"></div>
+            <div class="modal-actions">
+                <button id="column-cancel" class="btn-secondary">Cancel</button>
+                <button id="column-confirm" class="btn-primary">Use Selected Column</button>
+            </div>
+        </div>
+    </div>
+
     <footer>
         <p>Fuzzy Lookup Portal &mdash; All processing happens in your browser. No data leaves your machine.</p>
     </footer>
 
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="fuzzy.js"></script>
     <script src="app.js"></script>
 </body>
